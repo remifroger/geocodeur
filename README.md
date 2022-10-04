@@ -86,7 +86,7 @@ Nom du fichier de sortie des adresses géocodées (qui sera créé dans l'espace
 Exemple : -o proj_adr_geocodees.csv
 ```
 
-### Exemple de commande
+### Exemple d'usage'
 
 ```shell
 python "C:\path\main.py" -f "C:\data\rpls\adresses_a_geocoder.csv" -w "C:\data\rpls" -id n_sq_rplsa -a adresse -cp c_postal -com l_com -p pays -m 20 -g interne ban -o test3.csv
@@ -96,7 +96,129 @@ python "C:\path\main.py" -f "C:\data\rpls\adresses_a_geocoder.csv" -w "C:\data\r
 
 Il est possible d'appeler la classe Geocoding() directement dans votre propre script Python.
 
-### Exemple d'intégration
+### La class Geocoding(*config*)
+
+```
+Geocoding(*config*)
+
+Classe représentant une instance de géocodage d'un fichier
+
+Attributs
+
+config: dict
+    Object de configuration
+config.PGHOST: str
+    Hôte PostgreSQL
+config.PGPORT: str
+    Port PostgreSQL
+config.PGDBNAME: str
+    BDD PostgreSQL
+config.PGUSER: str
+    Nom d'utilisateur PostgreSQL
+config.PGPWD: str
+    Mot de passe PostgreSQL
+config.QGISBINPATH: str
+    Chemin vers le dossier des binaires QGIS (/bin)
+config.PGBINPATH: str
+    Chemin vers le dossier des binaires PostgreSQL (/bin)
+config.GEOCODINGSERVICES: array
+    Liste des services de géocodage à utiliser, dans l'ordre
+config.LOCATOR: str
+    Chemin vers le locator associé au géocodage interne (P:/SIG/06_RESSOURCES/Geocodage/PERSONNALISATION_BDREF/Adresses/ADRESSE_COMPOSITE)
+config.ESRI_MAX_ROWS: str
+    Nombre de lignes max. à consommer par le service payant World Esri
+config.ESRIAPIKEY: str
+    Clé API Esri
+config.WORKSPACE: str
+    Chemin vers l'espace de travail où les fichiers seront créés
+config.INPUT_A_GEOCODER: str
+    Chemin du CSV à géocoder
+config.GEOCODAGE_OUTPUT: str
+    Nom du fichier CSV de sortie
+config.GEOCODAGE_ERROR: str
+    Nom du fichier CSV des erreurs de géocodage
+config.ID: str
+    Colonne de l'identifiant unique des adresses à géocoder
+config.ADRESSE: str
+    Colonne de l'adresse
+config.CODE_POSTAL: str
+    Colonne du code postal
+config.COMMUNE: str
+    Colonne de la commune
+config.PAYS: str
+    Colonne du pays
+pathIn: str
+    Chemin d'entrée du géocodage
+pathOut: str
+    Chemin de sortie du géocodage
+```
+
+### Méthodes accessibles
+
+```
+Geocoding.clean_workspace()
+
+Nettoyage de l'espace de travail
+```
+
+```
+Geocoding.geocoding_interne(*pathIn*, *pathOut*)
+
+Géocodage avec le service interne
+
+Attributs
+
+pathIn: str
+    Fichier d'entrée
+pathOut: str
+    Dossier de sortie
+```
+
+```
+Geocoding.geocoding_esri(*pathIn*, *pathOut*)
+
+Géocodage avec le service Esri
+
+Attributs
+
+pathIn: str
+    Fichier d'entrée
+pathOut: str
+    Dossier de sortie
+```
+
+```
+Geocoding.geocoding_ban(*pathIn*, *pathOut*)
+
+Géocodage avec le service BAN
+
+Attributs
+
+pathIn: str
+    Fichier d'entrée
+pathOut: str
+    Dossier de sortie
+```
+
+```
+Geocoding.geom_proj()
+
+Reprojection des adresses en Lambert-93
+```
+
+```
+Geocoding.export_results()
+
+Exporte les résultats des géocodeurs dans un dossier final
+```
+
+```
+Geocoding.chain_geocoding()
+
+Enchaîne l'ensemble des tâches
+```
+
+### Exemple d'usage
 
 ```python
 import sys
@@ -128,6 +250,6 @@ config = {
 }
 
 ExecGeoc = geocoding.Geocoding(config)
-ExecGeoc.clean_workspace()
 ExecGeoc.chain_geocoding()
+## Cela retourne un dossier au niveau du "WORKSPACE" (dans l'exemple : C:\\data\\rpls) comprenant les résultats CSV du géocodage
 ```

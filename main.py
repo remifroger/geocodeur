@@ -47,6 +47,5 @@ config = {
 }
 
 ExecGeoc = geocoding.Geocoding(config)
-ExecGeoc.clean_workspace()
 ExecGeoc.chain_geocoding()
 

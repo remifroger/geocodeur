@@ -1,6 +1,6 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-# Python 2.7.X
+##!/usr/bin/python
+## -*- coding: utf-8 -*-
+## Python 2.7.X
 
 import os, sys, arcpy, subprocess, json, csv, requests, shutil
 import pandas as pd
@@ -26,7 +26,7 @@ def csv_to_esri_json(csvFilePath, limit_rows, id_adr, address, cpostal, com, cou
     country: str
         Colonne du pays
     """
-    with open(csvFilePath) as file_obj:
+    with open(csvFilePath, encoding="utf-8") as file_obj:
         rows = csv.DictReader(file_obj, delimiter=',')
         array = []
         limit = limit_rows
@@ -262,6 +262,7 @@ class Geocoding:
             print(e.output) 
 
     def chain_geocoding(self):
+        self.clean_workspace()
         GEOCODING_SERVICES = self.config["GEOCODINGSERVICES"]
         for index, service in enumerate(GEOCODING_SERVICES):
             if index == 0:
