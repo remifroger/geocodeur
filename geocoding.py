@@ -242,8 +242,6 @@ class Geocoding:
             subprocess.check_call(['psql', '-U', self.config["PGUSER"], '-h', self.config["PGHOST"], '-p', self.config["PGPORT"], '-d', self.config["PGDBNAME"], '-c', '{0}'.format(SQLUPDATECOORD)])
             print('Transformation terminée')
         except subprocess.CalledProcessError as e:
-            print('Ici')
-            print(e)
             print(e.output) 
 
     def export_results(self):
