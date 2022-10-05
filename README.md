@@ -1,5 +1,7 @@
 # Géocodeur
 
+Géocodeur prenant en entrée un CSV et utilisant trois services successifs au choix : un "locator" Esri, le ArcGIS World Geocoding et la BAN, pour aboutir à un CSV comprenant les X, Y ainsi qu'un fichier contenant les erreurs. Le géocodage est exécutable en ligne de commande ou dans un script Python.
+
 ## Version
 
 Python 2.7.x
@@ -11,6 +13,14 @@ Python 2.7.x
 Assurez-vous de bien avoir QGIS, PostgreSQL, une clé API Esri et la librairie ArcPy. Une instance locale de PostgreSQL est nécessaire.
 
 Puis remplissez les variables d'environnement du fichier `.env.sample` (en cas d'erreur, renommez-le en `.env`).
+
+### Usage
+
+```shell
+python main.py -f "C:\path\to\adresses_a_geocoder.csv" -w "C:\path\to\workspace" -id col_id -a col_adresse -cp col_code_postal -com col_commune -p col_pays -m max_rows_esri -g interne esri ban -o output_file.csv
+```
+
+**Les paramètres -id (colonne identifiant adresse), -a (colonne adresse), -cp (colonne code postal), -com (colonne commune), -p (colonne pays) n'acceptent que des noms de colonne sans caractères spéciaux, et donc la longueur est inférieure à 10, pour des contraintes liées au format de sortie SHP.**
 
 ### Aide
 
@@ -86,7 +96,7 @@ Nom du fichier de sortie des adresses géocodées (qui sera créé dans l'espace
 Exemple : -o proj_adr_geocodees.csv
 ```
 
-### Exemple d'usage'
+### Exemple d'usage
 
 ```shell
 python "C:\path\main.py" -f "C:\data\rpls\adresses_a_geocoder.csv" -w "C:\data\rpls" -id n_sq_rplsa -a adresse -cp c_postal -com l_com -p pays -m 20 -g interne ban -o test3.csv

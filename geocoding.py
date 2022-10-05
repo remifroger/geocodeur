@@ -26,7 +26,7 @@ def csv_to_esri_json(csvFilePath, limit_rows, id_adr, address, cpostal, com, cou
     country: str
         Colonne du pays
     """
-    with open(csvFilePath, encoding="utf-8") as file_obj:
+    with open(csvFilePath) as file_obj:
         rows = csv.DictReader(file_obj, delimiter=',')
         array = []
         limit = limit_rows
@@ -164,14 +164,14 @@ class Geocoding:
         try:
             print('Enregistrement des adresses géocodées par le locator interne dans une table PostgreSQL')
             os.chdir(self.config["QGISBINPATH"])
-            subprocess.check_call(['ogr2ogr', '-f', 'PostgreSQL', 'PG:host={0} port={1} dbname={2} user={3} password={4}'.format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), "{0}\{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split(".")[0]), '-overwrite', '-dialect', 'sqlite', '-sql', "SELECT {0}, 'Interne' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, n_voie, c_suf1, c_desi, l_voie, {4}, ST_X(geometry) as x, ST_Y(geometry) as y FROM {5} where status <> 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-lco', 'OVERWRITE=yes', '-nln', '{0}.{1}'.format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
+            subprocess.check_call(['ogr2ogr', '-f', 'PostgreSQL', 'PG:host={0} port={1} dbname={2} user={3} password={4}'.format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), "{0}\{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split(".")[0]), '-overwrite', '-dialect', 'sqlite', '-sql', "SELECT {0}, 'Interne' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, {4}, ST_X(geometry) as x, ST_Y(geometry) as y FROM {5} where status <> 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-lco', 'OVERWRITE=yes', '-nln', '{0}.{1}'.format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
             print('Exporté')
         except subprocess.CalledProcessError as e:
             print(e.output)
 
         try:
             print('Sélection des adresses non géocodées précédemment et export en CSV pour poursuivre le géocodage des erreurs')
-            subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}\{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-sql', "SELECT {0}, {1}, {2}, {3}, n_voie, c_suf1, c_desi, l_voie, {4} FROM {5} WHERE status = 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
+            subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}\{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-sql', "SELECT {0}, {1}, {2}, {3}, {4} FROM {5} WHERE status = 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
             print('Exporté')
         except subprocess.CalledProcessError as e:
             print(e.output)
