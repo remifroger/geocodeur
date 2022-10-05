@@ -2,15 +2,26 @@
 
 Géocodeur prenant en entrée un CSV et utilisant trois services successifs au choix : un "locator" Esri, le ArcGIS World Geocoding et la BAN, pour aboutir à un CSV comprenant les X, Y ainsi qu'un fichier contenant les erreurs. Le géocodage est exécutable en ligne de commande ou dans un script Python.
 
+[Exécuter en ligne de commande](#exécuter-en-ligne-de-commande)
+
+[Exécuter dans un script Python](#exécuter-dans-un-script)
+
 ## Version
 
 Python 2.7.x
 
+Conseil : étant donné la dépendance à la librairie ArcPy, il est conseillé d'utiliser la version Python 2.7 associée à ArcGIS, en général à ce chemin : C:\Python27\ArcGISX.X
+
 ## Exécuter en ligne de commande
 
-### Pré-requis
+### Pré-requis et dépendances
 
 Assurez-vous de bien avoir QGIS, PostgreSQL, une clé API Esri et la librairie ArcPy. Une instance locale de PostgreSQL est nécessaire.
+
+* ogr2ogr (QGIS),
+* psql (PostgreSQL),
+* API Esri,
+* Python (ArcPy, Pandas, Subprocess, CSV, Requests, Shutil, Dotenv)
 
 Puis remplissez les variables d'environnement du fichier `.env.sample` (en cas d'erreur, renommez-le en `.env`).
 
@@ -20,7 +31,9 @@ Puis remplissez les variables d'environnement du fichier `.env.sample` (en cas d
 python main.py -f "C:\path\to\adresses_a_geocoder.csv" -w "C:\path\to\workspace" -id col_id -a col_adresse -cp col_code_postal -com col_commune -p col_pays -m max_rows_esri -g interne esri ban -o output_file.csv
 ```
 
-**Les paramètres -id (colonne identifiant adresse), -a (colonne adresse), -cp (colonne code postal), -com (colonne commune), -p (colonne pays) n'acceptent que des noms de colonne sans caractères spéciaux, et donc la longueur est inférieure à 10, pour des contraintes liées au format de sortie SHP.**
+**Les paramètres -id (colonne identifiant adresse), -a (colonne adresse), -cp (colonne code postal), -com (colonne commune), -p (colonne pays) n'acceptent que des noms de colonne sans caractères spéciaux (ni espace, ni majuscule), et dont la longueur est inférieure à 10, pour des contraintes liées au format de sortie SHP.**
+
+Retourne dans l'espace de travail défini (paramètre -w) un dossier `geocodage_resultats` contenant le fichier de sortie CSV (paramètre -o) et un fichier contenant les erreurs, s'il y en a (adresses_err.csv).
 
 ### Aide
 
