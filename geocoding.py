@@ -134,15 +134,18 @@ class Geocoding:
     def clean_workspace(self):
         print('Suppression des fichiers d\'export s\'ils existent déjà')
         try:
-            # Pour les shp, on boucle sur l'ensemble du dossier pour détecter les fichiers commençant par le nom du shp sans l'extension, afin de bien supprimer l'ensemble des fichiers shp
-            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'interne')):
-                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'interne'))
-            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'esri')):
-                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'esri'))
-            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'ban')):
-                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'ban'))
-            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage_resultats')):
-                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage_resultats'))
+            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage')):
+                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage'))
+            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage', 'interne')):
+                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'interne'))
+            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage', 'esri')):
+                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'esri'))
+            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage', 'ban')):
+                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'ban'))
+            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage', 'geocodage_resultats')):
+                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'geocodage_resultats'))
+            workspaceFolder = os.path.join(self.config["WORKSPACE"], 'geocodage')
+            os.mkdir(workspaceFolder)
             print('Espace de travail prêt')
         except OSError as error:
             print(error)
@@ -222,7 +225,7 @@ class Geocoding:
 
         try:
             print('Enregistrement des adresses géocodées par la BAN dans une table PostgreSQL (insertion dans la même table que précédemment)')
-            subprocess.check_call(['ogr2ogr', '-f', 'PostgreSQL', "PG:host={0} port={1} dbname={2} user={3} password={4}".format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-sql', "SELECT {0}, 'BAN' as geoc_name, 'BAN' as loc_name, '' as status, result_score as score, result_type as match_type, result_label as match_addr, {1}, {2}, {3}, {4}, longitude as x, latitude as y FROM {5} where round(result_score, 1) >= 0.6".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-dialect', 'sqlite', '-nln', '{0}.{1}'.format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
+            subprocess.check_call(['ogr2ogr', '-f', 'PostgreSQL', "PG:host={0} port={1} dbname={2} user={3} password={4}".format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-sql', "SELECT {0}, 'BAN' as geoc_name, 'BAN' as loc_name, '' as status, result_score * 100 as score, result_type as match_type, result_label as match_addr, {1}, {2}, {3}, {4}, longitude as x, latitude as y FROM {5} where round(result_score, 1) >= 0.6".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-dialect', 'sqlite', '-nln', '{0}.{1}'.format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
             print('Exporté')
         except subprocess.CalledProcessError as e:
             print(e.output)
@@ -245,7 +248,7 @@ class Geocoding:
             print(e.output) 
 
     def export_results(self):
-        final_folder = os.path.join(self.config["WORKSPACE"], "geocodage_resultats")
+        final_folder = os.path.join(self.config["WORKSPACE"], "geocodage", "geocodage_resultats")
         os.mkdir(final_folder)
         os.chdir(self.config["QGISBINPATH"])
         try:
@@ -253,8 +256,8 @@ class Geocoding:
             # Copie en CSV de la table PostgreSQL contenant les adresses géocodées insérées au fil de l'eau
             subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(final_folder, "adresses_geocodees.csv"), "PG:host={0} port={1} dbname={2} user={3} password={4}".format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), '-sql', "SELECT * FROM {0}.{1}".format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
             # Copie du CSV contenant les adresses non géocodées s'il en reste
-            pathErrors = os.path.join(self.config["WORKSPACE"], self.config["GEOCODINGSERVICES"][-1], self.config["GEOCODAGE_ERROR"])
-            pathResults = os.path.join(self.config["WORKSPACE"], "geocodage_resultats", "geocodage_erreurs_restantes.csv")
+            pathErrors = os.path.join(self.config["WORKSPACE"], "geocodage", self.config["GEOCODINGSERVICES"][-1], self.config["GEOCODAGE_ERROR"])
+            pathResults = os.path.join(self.config["WORKSPACE"], "geocodage", "geocodage_resultats", "geocodage_erreurs_restantes.csv")
             if os.path.exists(pathErrors):
                 shutil.copyfile(pathErrors, pathResults)
             print('Copie terminée')
@@ -264,30 +267,34 @@ class Geocoding:
     def chain_geocoding(self):
         self.clean_workspace()
         GEOCODING_SERVICES = self.config["GEOCODINGSERVICES"]
-        for index, service in enumerate(GEOCODING_SERVICES):
-            if index == 0:
-                pathIn = self.config["INPUT_A_GEOCODER"]
-            else:
-                pathIn = os.path.join(self.config["WORKSPACE"], GEOCODING_SERVICES[index - 1], self.config["GEOCODAGE_ERROR"])
-            pathOut = os.path.join(self.config["WORKSPACE"], service)
-            if service == 'interne':
-                self.geocoding_interne(pathIn, pathOut)
-            elif service == 'esri':
-                count_rows_csv = subprocess.check_output("csvstat {0} --count".format(pathIn), shell=True)
-                if int(count_rows_csv) < self.config["ESRI_MAX_ROWS"]:
-                    self.geocoding_esri(pathIn, pathOut)
-                elif int(count_rows_csv) == 0:
-                    print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
-                    break
+        if len(GEOCODING_SERVICES) > 0:
+            for index, service in enumerate(GEOCODING_SERVICES):
+                if index == 0:
+                    pathIn = self.config["INPUT_A_GEOCODER"]
                 else:
-                    print('Seuil Esri dépassé')
-                    break
-            elif service == 'ban':
-                count_rows_csv = subprocess.check_output("csvstat {0} --count".format(pathIn), shell=True)
-                if int(count_rows_csv) == 0:
-                    print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
-                    break
-                else:
-                    self.geocoding_ban(pathIn, pathOut)
-        self.geom_proj()
-        self.export_results()
+                    pathIn = os.path.join(self.config["WORKSPACE"], "geocodage", GEOCODING_SERVICES[index - 1], self.config["GEOCODAGE_ERROR"])
+                pathOut = os.path.join(self.config["WORKSPACE"], "geocodage", service)
+                if service == 'interne':
+                    self.geocoding_interne(pathIn, pathOut)
+                elif service == 'esri':
+                    count_rows_csv = subprocess.check_output("csvstat {0} --count".format(pathIn), shell=True)
+                    if int(count_rows_csv) < self.config["ESRI_MAX_ROWS"]:
+                        self.geocoding_esri(pathIn, pathOut)
+                    elif int(count_rows_csv) == 0:
+                        print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
+                        break
+                    else:
+                        print('Seuil Esri dépassé')
+                        break
+                elif service == 'ban':
+                    count_rows_csv = subprocess.check_output("csvstat {0} --count".format(pathIn), shell=True)
+                    if int(count_rows_csv) == 0:
+                        print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
+                        break
+                    else:
+                        self.geocoding_ban(pathIn, pathOut)
+            self.geom_proj()
+            self.export_results()
+        else:
+            print("Aucun service de géocodage n'a été utilisé, GEOCODINGSERVICES est vide")
+            exit()

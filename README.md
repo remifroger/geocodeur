@@ -33,7 +33,7 @@ python main.py -f "C:\path\to\adresses_a_geocoder.csv" -w "C:\path\to\workspace"
 
 **Les paramètres -id (colonne identifiant adresse), -a (colonne adresse), -cp (colonne code postal), -com (colonne commune), -p (colonne pays) n'acceptent que des noms de colonne sans caractères spéciaux (ni espace, ni majuscule), et dont la longueur est inférieure à 10, pour des contraintes liées au format de sortie SHP.**
 
-Retourne dans l'espace de travail défini (paramètre -w) un dossier `geocodage_resultats` contenant le fichier de sortie CSV (paramètre -o) et un fichier contenant les erreurs, s'il y en a (adresses_err.csv).
+Retourne dans l'espace de travail défini (paramètre -w) un dossier `geocodage/geocodage_resultats` contenant le fichier de sortie CSV (paramètre -o) et un fichier contenant les erreurs, s'il y en a (adresses_err.csv).
 
 ### Aide
 
