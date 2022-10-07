@@ -174,7 +174,7 @@ class Geocoding:
 
         try:
             print('Sélection des adresses non géocodées précédemment et export en CSV pour poursuivre le géocodage des erreurs')
-            subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}\{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-sql', "SELECT {0}, {1}, {2}, {3}, {4} FROM {5} WHERE status = 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
+            subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}\{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-sql', "SELECT {0}, 'Interne' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, {4}, ST_X(geometry) as x, ST_Y(geometry) as y FROM {5} where status = 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
             print('Exporté')
         except subprocess.CalledProcessError as e:
             print(e.output)
@@ -210,7 +210,7 @@ class Geocoding:
 
         try:
             print('Sélection des adresses non géocodées par Esri précédemment et export en CSV')
-            subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}/{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}/{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-sql', "SELECT * FROM {0} WHERE status = 'U'".format(str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
+            subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}/{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}/{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-sql', "SELECT {0}, 'Esri' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, {4}, x, y FROM {5} where status = 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
             print('Exporté')
         except subprocess.CalledProcessError as e:
             print(e.output)
@@ -232,7 +232,7 @@ class Geocoding:
 
         try:
             print('Sélection des adresses non géocodées par BAN précédemment et export en CSV')
-            subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-dialect', 'sqlite', '-sql', "SELECT * FROM {0} WHERE round(result_score, 1) < 0.6".format(str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
+            subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-dialect', 'sqlite', '-sql', "SELECT {0}, 'BAN' as geoc_name, 'BAN' as loc_name, '' as status, result_score * 100 as score, result_type as match_type, result_label as match_addr, {1}, {2}, {3}, {4}, longitude as x, latitude as y FROM {5} where round(result_score, 1) < 0.6".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
             print('Exporté')
         except subprocess.CalledProcessError as e:
             print(e.output)
