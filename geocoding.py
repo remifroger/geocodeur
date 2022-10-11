@@ -2,7 +2,6 @@
 ## -*- coding: utf-8 -*-
 ## Python 2.7.X
 
-#from importlib.resources import path
 import os, sys, arcpy, subprocess, json, csv, requests, shutil
 import pandas as pd
 
@@ -294,7 +293,8 @@ class Geocoding:
                         break
                     else:
                         # Si le géocodeur précédent est 'esri' et que le nombre de lignes a excédé le seuil esri, alors on prend l'entrée du géocodeur précédent esri s'il existe (si longueur de GEOCODING_SERVICES vaut 3)
-                        if GEOCODING_SERVICES[index - 1] == 'esri' and int(count_rows_csv) < self.config["ESRI_MAX_ROWS"] and len(GEOCODING_SERVICES) == 3:
+                        if GEOCODING_SERVICES[index - 1] == 'esri' and int(count_rows_csv) > self.config["ESRI_MAX_ROWS"] and len(GEOCODING_SERVICES) == 3:
+                            print('Seuil Esri dépassé, passage par la BAN')
                             pathIn = os.path.join(self.config["WORKSPACE"], "geocodage", GEOCODING_SERVICES[index - 2], self.config["GEOCODAGE_ERROR"])
                         self.geocoding_ban(pathIn, pathOut)
             self.geom_proj()
