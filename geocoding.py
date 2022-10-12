@@ -5,7 +5,7 @@
 import os, sys, arcpy, subprocess, json, csv, requests, shutil
 import pandas as pd
 
-def csv_to_esri_json(csvFilePath, limit_rows, id_adr, address, cpostal, com, country):
+def csv_to_esri_json(csvFilePath, id_adr, address, cpostal, com, country):
     """
     Transforme un CSV en JSON adapté pour le service de géocodage World d'Esri
 
@@ -13,8 +13,6 @@ def csv_to_esri_json(csvFilePath, limit_rows, id_adr, address, cpostal, com, cou
     ----------
     csvFilePath: str
         Chemin du fichier CSV
-    limit_rows: int
-        Nombre de lignes max. à retourner
     id_adr: str
         Colonne le l'identifiant unique de l'adresse
     address: str
@@ -29,19 +27,15 @@ def csv_to_esri_json(csvFilePath, limit_rows, id_adr, address, cpostal, com, cou
     with open(csvFilePath) as file_obj:
         rows = csv.DictReader(file_obj, delimiter=',')
         array = []
-        limit = limit_rows
         for index, row in enumerate(rows):
-            if index == limit:
-                break
-            else:
-                id_row = row[id_adr]
-                address_format = row[address] + "" + row[cpostal] + "" + row[com] + ", " + row[country]
-                json_dict = {
-                    'attributes': {
-                        'objectid': int(id_row),
-                        'address': address_format
-                    }
+            id_row = row[id_adr]
+            address_format = row[address] + "" + row[cpostal] + "" + row[com] + ", " + row[country]
+            json_dict = {
+                'attributes': {
+                    'objectid': int(id_row),
+                    'address': address_format
                 }
+            }
             array.append(json_dict)
         esriJsonFormat = { 'records': array }
         return json.dumps(esriJsonFormat)
@@ -182,7 +176,7 @@ class Geocoding:
     def geocoding_esri(self, pathIn, pathOut):
         os.mkdir(pathOut)
         input_adresse_esri = pathIn
-        input_adresse_esri_to_json = csv_to_esri_json(input_adresse_esri, self.config["ESRI_MAX_ROWS"], self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"])
+        input_adresse_esri_to_json = csv_to_esri_json(input_adresse_esri, self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"])
         # Usage du service ArcGIS World Geocoding Service seulement si le CSV en entrée contient moins que X lignes
         try:
             print('Lancement du géocodage Esri (World service) des adresses non géocodées précédemment')
