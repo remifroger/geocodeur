@@ -2,8 +2,51 @@
 ## -*- coding: utf-8 -*-
 ## Python 2.7.X
 
-import os, sys, arcpy, subprocess, json, csv, requests, shutil
+"""
+Fonctionnement
+--------------
+Le but est de géocoder des adresses en utilisant plusieurs services successifs en une seule fois, tout en gardant la possibilité de personnaliser l'approche si besoin.
+On crée une classe de géocodage, prenant en paramètre un dictionnaire de configuration (config) et ayant des méthodes pour :
+    - nettoyer l'espace de travail,
+    - géocoder avec le service interne,
+    - géocoder avec le service Esri,
+    - géocoder avec la BAN,
+    - transformer les coordonnées dans un le même système,
+    - exporter les résultats,
+    - chaîner l'ensemble des méthodes.
+Cette dernière méthode est celle utilisée par défaut dans l'exécuteur (main.py).
+"""
+
+import os, sys, arcpy, subprocess, json, csv, requests, shutil, io
 import pandas as pd
+import re
+
+def split_csv(filehandler, output_path, output_name, row_limit, delimiter=',', keep_headers=True):
+    import csv
+    output_name_template='{0}_%s.csv'.format(output_name)
+    reader = csv.reader(filehandler, delimiter=delimiter)
+    current_piece = 1
+    current_out_path = os.path.join(
+        output_path,
+        output_name_template % current_piece
+    )
+    current_out_writer = csv.writer(open(current_out_path, 'wb'), delimiter=delimiter)
+    current_limit = row_limit
+    if keep_headers:
+        headers = next(reader)
+        current_out_writer.writerow(headers)
+    for i, row in enumerate(reader):
+        if i + 1 > current_limit:
+            current_piece += 1
+            current_limit = row_limit * current_piece
+            current_out_path = os.path.join(
+                output_path,
+                output_name_template % current_piece
+            )
+            current_out_writer = csv.writer(open(current_out_path, 'wb'), delimiter=delimiter)
+            if keep_headers:
+                current_out_writer.writerow(headers)
+        current_out_writer.writerow(row)
 
 def csv_to_esri_json(csvFilePath, id_adr, address, cpostal, com, country):
     """
@@ -27,13 +70,15 @@ def csv_to_esri_json(csvFilePath, id_adr, address, cpostal, com, country):
     with open(csvFilePath) as file_obj:
         rows = csv.DictReader(file_obj, delimiter=',')
         array = []
+        special_characters = ['!','#','$','%', '&','@','[',']',']','_', '?ï¿½', '/']
         for index, row in enumerate(rows):
-            id_row = row[id_adr]
-            address_format = row[address] + "" + row[cpostal] + "" + row[com] + ", " + row[country]
+            id_row = int(row[id_adr])
+            address_format = row[address] + " " + row[cpostal] + " " + row[com] + ", " + row[country]
+            cleanAddress = ''.join(i for i in address_format if not i in special_characters)
             json_dict = {
                 'attributes': {
-                    'objectid': int(id_row),
-                    'address': address_format
+                    'objectid': id_row,
+                    'address': cleanAddress
                 }
             }
             array.append(json_dict)
@@ -176,24 +221,34 @@ class Geocoding:
     def geocoding_esri(self, pathIn, pathOut):
         os.mkdir(pathOut)
         input_adresse_esri = pathIn
-        input_adresse_esri_to_json = csv_to_esri_json(input_adresse_esri, self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"])
-        # Usage du service ArcGIS World Geocoding Service seulement si le CSV en entrée contient moins que X lignes
-        try:
-            print('Lancement du géocodage Esri (World service) des adresses non géocodées précédemment')
-            headers = { 'Content-Type': 'application/x-www-form-urlencoded','charset': 'utf-8' }
-            data = 'f=json&addresses={0}&langCode=fr&token={1}&outSR=102110'.format(input_adresse_esri_to_json, self.config["ESRIAPIKEY"])
-            response = requests.post('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/geocodeAddresses', headers=headers, data=data)
-            outEsriGeoc = response.json()
-            print('Géocodage terminé')
-            rows = []
-            for data in [outEsriGeoc]:
-                data_rows = data['locations']
-                for row in data_rows:
-                    rows.append({self.config["ID"]: row['attributes']['ResultID'], 'loc_name': row['attributes']['Loc_name'], 'status': row['attributes']['Status'], 'score': row['attributes']['Score'], 'match_type': row['attributes']['Addr_type'], 'match_addr': row['attributes']['Match_addr'], self.config["ADRESSE"]: row['attributes']['Place_addr'], self.config["CODE_POSTAL"]: row['attributes']['Postal'], self.config["COMMUNE"]: row['attributes']['City'], self.config["PAYS"]: row['attributes']['CntryName'], 'x': row['attributes']['X'], 'y': row['attributes']['Y']})
-            data = pd.DataFrame(rows)
-            data.to_csv("{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), sep=';', index=False, encoding='utf-8')
-        except requests.exceptions.HTTPError as e:
-            print(str(e))
+        esri_batch_geocoding = 1800 # Le service Esri ne permet de géocoder que 2000 lignes d'un coup à chaque appel de l'API
+        split_csv(open('{0}'.format(input_adresse_esri), 'r'), pathOut, "adresses_a_geoc_esri", esri_batch_geocoding)
+        for index, csv in enumerate(os.listdir(pathOut)):
+            if csv.startswith("adresses_a_geoc_esri") and csv.endswith(".csv"):
+                try:
+                    input_adresse_esri_to_json = csv_to_esri_json(os.path.join(pathOut, csv), self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"])
+                    # Usage du service ArcGIS World Geocoding Service seulement si le CSV en entrée contient moins que X lignes
+                    try:
+                        print('Lancement du géocodage Esri (World service) des adresses non géocodées précédemment')
+                        headers = { 'Content-Type': 'application/x-www-form-urlencoded','charset': 'utf-8' }
+                        data = 'f=json&addresses={0}&token={1}&outSR=102110'.format(input_adresse_esri_to_json, self.config["ESRIAPIKEY"])
+                        response = requests.post('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/geocodeAddresses', headers=headers, data=data)
+                        outEsriGeoc = response.json()
+                        print('Géocodage terminé')
+                        rows = []
+                        for data in [outEsriGeoc]:
+                            data_rows = data['locations']
+                            for row in data_rows:
+                                rows.append({self.config["ID"]: row['attributes']['ResultID'], 'loc_name': row['attributes']['Loc_name'], 'status': row['attributes']['Status'], 'score': row['attributes']['Score'], 'match_type': row['attributes']['Addr_type'], 'match_addr': row['attributes']['Match_addr'], self.config["ADRESSE"]: row['attributes']['Place_addr'], self.config["CODE_POSTAL"]: row['attributes']['Postal'], self.config["COMMUNE"]: row['attributes']['City'], self.config["PAYS"]: row['attributes']['CntryName'], 'x': row['attributes']['X'], 'y': row['attributes']['Y']})
+                        data = pd.DataFrame(rows)
+                        if index == 0:
+                            data.to_csv("{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), sep=';', index=False, encoding='utf-8')
+                        elif index > 0:
+                            data.to_csv("{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), sep=';', mode='a', index=False, header=False, encoding='utf-8')
+                    except requests.exceptions.HTTPError as e:
+                        print(str(e))
+                except subprocess.CalledProcessError as e:
+                    print(e.output)
         try:
             print('Enregistrement des adresses géocodées par Esri dans une table PostgreSQL (insertion dans la même table que précédemment)')
             subprocess.check_call(['ogr2ogr', '-f', 'PostgreSQL', "PG:host={0} port={1} dbname={2} user={3} password={4}".format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-sql', "SELECT {0}, 'Esri' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, {4}, x, y FROM {5} where status <> 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-dialect', 'sqlite', '-nln', '{0}.{1}'.format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
@@ -234,7 +289,7 @@ class Geocoding:
         os.chdir(self.config["PGBINPATH"])
         try:
             print('Transformation des coordonnées issues du géocodage Esri et BAN dans le format L93')
-            SQLUPDATECOORD = "UPDATE " + str(self.config["PGSCHEMA"]) + "." + str(self.config["GEOCODAGE_OUTPUT"]).split(".")[0] + " SET x=st_x(st_transform(ST_setsrid(cast(st_makepoint(x,y) as geometry), 4326), 2154)), y=st_y(st_transform(ST_setsrid(cast(st_makepoint(x,y) as geometry), 4326), 2154)) WHERE geoc_name in('BAN', 'Esri')"
+            SQLUPDATECOORD = "UPDATE " + str(self.config["PGSCHEMA"]) + "." + str(self.config["GEOCODAGE_OUTPUT"]).split(".")[0] + " SET x=st_x(st_transform(ST_setsrid(cast(st_makepoint(x::numeric, y::numeric) as geometry), 4326), 2154)), y=st_y(st_transform(ST_setsrid(cast(st_makepoint(x,y) as geometry), 4326), 2154)) WHERE geoc_name in('BAN', 'Esri')"
             subprocess.check_call(['psql', '-U', self.config["PGUSER"], '-h', self.config["PGHOST"], '-p', self.config["PGPORT"], '-d', self.config["PGDBNAME"], '-c', '{0}'.format(SQLUPDATECOORD)])
             print('Transformation terminée')
         except subprocess.CalledProcessError as e:
@@ -272,7 +327,7 @@ class Geocoding:
                 elif service == 'esri':
                     if (os.path.exists(pathIn)):
                         count_rows_csv = subprocess.check_output("csvstat {0} --count".format(pathIn), shell=True)
-                        if int(count_rows_csv) < self.config["ESRI_MAX_ROWS"]:
+                        if int(count_rows_csv) < int(self.config["ESRI_MAX_ROWS"]):
                             self.geocoding_esri(pathIn, pathOut)
                         elif int(count_rows_csv) == 0:
                             print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
@@ -291,7 +346,7 @@ class Geocoding:
                             break
                         else:
                             # Si le géocodeur précédent est 'esri' et que le nombre de lignes a excédé le seuil esri, alors on prend l'entrée du géocodeur précédent esri s'il existe (si longueur de GEOCODING_SERVICES vaut 3)
-                            if GEOCODING_SERVICES[index - 1] == 'esri' and int(count_rows_csv) > self.config["ESRI_MAX_ROWS"] and len(GEOCODING_SERVICES) == 3:
+                            if GEOCODING_SERVICES[index - 1] == 'esri' and int(count_rows_csv) > int(self.config["ESRI_MAX_ROWS"]) and len(GEOCODING_SERVICES) == 3:
                                 print('Seuil Esri dépassé, passage par la BAN')
                                 pathIn = os.path.join(self.config["WORKSPACE"], "geocodage", GEOCODING_SERVICES[index - 2], self.config["GEOCODAGE_ERROR"])
                             self.geocoding_ban(pathIn, pathOut)
