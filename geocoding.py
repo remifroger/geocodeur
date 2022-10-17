@@ -289,7 +289,7 @@ class Geocoding:
         os.chdir(self.config["PGBINPATH"])
         try:
             print('Transformation des coordonnées issues du géocodage Esri et BAN dans le format L93')
-            SQLUPDATECOORD = "UPDATE " + str(self.config["PGSCHEMA"]) + "." + str(self.config["GEOCODAGE_OUTPUT"]).split(".")[0] + " SET x=st_x(st_transform(ST_setsrid(cast(st_makepoint(x::numeric, y::numeric) as geometry), 4326), 2154)), y=st_y(st_transform(ST_setsrid(cast(st_makepoint(x,y) as geometry), 4326), 2154)) WHERE geoc_name in('BAN', 'Esri')"
+            SQLUPDATECOORD = "UPDATE " + str(self.config["PGSCHEMA"]) + "." + str(self.config["GEOCODAGE_OUTPUT"]).split(".")[0] + " SET x=st_x(st_transform(ST_setsrid(cast(st_makepoint(x::numeric, y::numeric) as geometry), 4326), 2154)), y=st_y(st_transform(ST_setsrid(cast(st_makepoint(x::numeric, y::numeric) as geometry), 4326), 2154)) WHERE geoc_name in('BAN', 'Esri')"
             subprocess.check_call(['psql', '-U', self.config["PGUSER"], '-h', self.config["PGHOST"], '-p', self.config["PGPORT"], '-d', self.config["PGDBNAME"], '-c', '{0}'.format(SQLUPDATECOORD)])
             print('Transformation terminée')
         except subprocess.CalledProcessError as e:
