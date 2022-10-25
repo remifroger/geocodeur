@@ -165,13 +165,15 @@ class Geocoding:
         """
 
         if len(config["ADRESSE"]) > 10 or len(config["CODE_POSTAL"]) > 10 or len(config["COMMUNE"]) > 10 or len(config["PAYS"]) > 10:
-            print("Le nom des colonnes adresse, code_postal, commune et pays ne doit pas dépasser 10 caractères.")
+            sys.stdout.write("Le nom des colonnes adresse, code_postal, commune et pays ne doit pas dépasser 10 caractères.")
+            sys.stdout.flush()
             exit()
         else:
             self.config = config
 
     def clean_workspace(self):
-        print('Suppression des fichiers d\'export s\'ils existent déjà')
+        sys.stdout.write('Suppression des fichiers d\'export s\'ils existent déjà')
+        sys.stdout.flush()
         try:
             if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage')):
                 shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage'))
@@ -185,9 +187,11 @@ class Geocoding:
                 shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'geocodage_resultats'))
             workspaceFolder = os.path.join(self.config["WORKSPACE"], 'geocodage')
             os.mkdir(workspaceFolder)
-            print('Espace de travail prêt')
+            sys.stdout.write('Espace de travail prêt')
+            sys.stdout.flush()
         except OSError as error:
-            print(error)
+            sys.stdout.write(error)
+            sys.stdout.flush()
             pass
 
     def geocoding_interne(self, pathIn, pathOut):
@@ -197,26 +201,34 @@ class Geocoding:
         output_adresse_interne = "{0}/{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])
 
         try:
-            print('Lancement du géocodage interne')
+            sys.stdout.write('Lancement du géocodage interne')
+            sys.stdout.flush()
             arcpy.GeocodeAddresses_geocoding(input_adresse_interne, LOCATOR_INTERNE, "adresse {0} VISIBLE NONE;cpostal {1} VISIBLE NONE".format(self.config["ADRESSE"], self.config["CODE_POSTAL"]), output_adresse_interne, "STATIC", "", "")
         except Exception:
             e = sys.exc_info()[1]
-            print(e.args[0])
+            sys.stdout.write(e.args[0])
+            sys.stdout.flush()
 
         try:
-            print('Enregistrement des adresses géocodées par le locator interne dans une table PostgreSQL')
+            sys.stdout.write('Enregistrement des adresses géocodées par le locator interne dans une table PostgreSQL')
+            sys.stdout.flush()
             os.chdir(self.config["QGISBINPATH"])
             subprocess.check_call(['ogr2ogr', '-f', 'PostgreSQL', 'PG:host={0} port={1} dbname={2} user={3} password={4}'.format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), "{0}\{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split(".")[0]), '-overwrite', '-dialect', 'sqlite', '-sql', "SELECT {0}, 'Interne' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, {4}, ST_X(geometry) as x, ST_Y(geometry) as y FROM {5} where status <> 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-lco', 'OVERWRITE=yes', '-nln', '{0}.{1}'.format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
-            print('Exporté')
+            sys.stdout.write('Exporté')
+            sys.stdout.flush()
         except subprocess.CalledProcessError as e:
-            print(e.output)
+            sys.stdout.write(e.output)
+            sys.stdout.flush()
 
         try:
-            print('Sélection des adresses non géocodées précédemment et export en CSV pour poursuivre le géocodage des erreurs')
+            sys.stdout.write('Sélection des adresses non géocodées précédemment et export en CSV pour poursuivre le géocodage des erreurs')
+            sys.stdout.flush()
             subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}\{1}.shp".format(pathOut, str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-sql', "SELECT {0}, 'Interne' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, {4}, '' as x, '' as y FROM {5} where status = 'U'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
-            print('Exporté')
+            sys.stdout.write('Exporté')
+            sys.stdout.flush()
         except subprocess.CalledProcessError as e:
-            print(e.output)
+            sys.stdout.write(e.output)
+            sys.stdout.flush()
     
     def geocoding_esri(self, pathIn, pathOut):
         os.mkdir(pathOut)
@@ -228,12 +240,14 @@ class Geocoding:
                 try:
                     input_adresse_esri_to_json = csv_to_esri_json(os.path.join(pathOut, csv), self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"])
                     try:
-                        print('Lancement du géocodage Esri (World service) des adresses non géocodées précédemment')
+                        sys.stdout.write('Lancement du géocodage Esri (World service) des adresses non géocodées précédemment')
+                        sys.stdout.flush()
                         headers = { 'Content-Type': 'application/x-www-form-urlencoded','charset': 'utf-8' }
                         data = 'f=json&addresses={0}&token={1}&outSR=102110'.format(input_adresse_esri_to_json, self.config["ESRIAPIKEY"])
                         response = requests.post('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/geocodeAddresses', headers=headers, data=data)
                         outEsriGeoc = response.json()
-                        print('Géocodage terminé')
+                        sys.stdout.write('Géocodage terminé')
+                        sys.stdout.flush()
                         rows = []
                         for data in [outEsriGeoc]:
                             data_rows = data['locations']
@@ -245,61 +259,77 @@ class Geocoding:
                         elif index > 0:
                             data.to_csv("{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), sep=';', mode='a', index=False, header=False, encoding='utf-8')
                     except requests.exceptions.HTTPError as e:
-                        print(str(e))
+                        sys.stdout.write(str(e))
+                        sys.stdout.flush()
                 except subprocess.CalledProcessError as e:
-                    print(e.output)
+                    sys.stdout.write(e.output)
+                    sys.stdout.flush()
         try:
-            print('Enregistrement des adresses géocodées par Esri dans une table PostgreSQL (insertion dans la même table que précédemment)')
+            sys.stdout.write('Enregistrement des adresses géocodées par Esri dans une table PostgreSQL (insertion dans la même table que précédemment)')
+            sys.stdout.flush()
             subprocess.check_call(['ogr2ogr', '-f', 'PostgreSQL', "PG:host={0} port={1} dbname={2} user={3} password={4}".format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-sql', "SELECT {0}, 'Esri' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, {4}, x, y FROM {5} where status <> 'U' or addr_type <> 'StreetName' or addr_type <> 'Postal'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-dialect', 'sqlite', '-nln', '{0}.{1}'.format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
-            print('Exporté')
+            sys.stdout.write('Exporté')
+            sys.stdout.flush()
         except subprocess.CalledProcessError as e:
-            print(e.output)
+            sys.stdout.write(e.output)
+            sys.stdout.flush()
 
         try:
-            print('Sélection des adresses non géocodées par Esri précédemment et export en CSV')
+            sys.stdout.write('Sélection des adresses non géocodées par Esri précédemment et export en CSV')
+            sys.stdout.flush()
             subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}/{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}/{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-sql', "SELECT {0}, 'Esri' as geoc_name, loc_name, status, score, match_type, match_addr, {1}, {2}, {3}, {4}, x, y FROM {5} where status = 'U' or addr_type = 'StreetName' or addr_type = 'Postal'".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
-            print('Exporté')
+            sys.stdout.write('Exporté')
+            sys.stdout.flush()
         except subprocess.CalledProcessError as e:
-            print(e.output)
+            sys.stdout.write(e.output)
+            sys.stdout.flush()
     
     def geocoding_ban(self, pathIn, pathOut):
         os.mkdir(pathOut)
         try:
-            print('Lancement du géocodage BAN') # Documentation : https://adresse.data.gouv.fr/api-doc/adresse
+            sys.stdout.write('Lancement du géocodage BAN') # Documentation : https://adresse.data.gouv.fr/api-doc/adresse
+            sys.stdout.flush()
             subprocess.check_output(['curl', '-X', 'POST', '-F', 'data=@{0}'.format(pathIn), 'https://api-adresse.data.gouv.fr/search/csv/', '-F', 'columns={0}'.format(self.config["ADRESSE"]), '-F', 'postcode={0}'.format(self.config["CODE_POSTAL"]), '-F', 'columns={0}'.format(self.config["COMMUNE"]), '-F', 'columns={0}'.format(self.config["PAYS"]), '-o', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"])])
         except subprocess.CalledProcessError as e:
-            print(e.output)
+            sys.stdout.write(e.output)
 
         try:
-            print('Enregistrement des adresses géocodées par la BAN dans une table PostgreSQL (insertion dans la même table que précédemment)')
+            sys.stdout.write('Enregistrement des adresses géocodées par la BAN dans une table PostgreSQL (insertion dans la même table que précédemment)')
+            sys.stdout.flush()
             subprocess.check_call(['ogr2ogr', '-f', 'PostgreSQL', "PG:host={0} port={1} dbname={2} user={3} password={4}".format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-sql', "SELECT {0}, 'BAN' as geoc_name, 'BAN' as loc_name, '' as status, result_score * 100 as score, result_type as match_type, result_label as match_addr, {1}, {2}, {3}, {4}, longitude as x, latitude as y FROM {5} where round(result_score, 1) >= 0.6".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0]), '-dialect', 'sqlite', '-nln', '{0}.{1}'.format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
-            print('Exporté')
+            sys.stdout.write('Exporté')
+            sys.stdout.flush()
         except subprocess.CalledProcessError as e:
-            print(e.output)
+            sys.stdout.write(e.output)
 
         try:
-            print('Sélection des adresses non géocodées par BAN précédemment et export en CSV')
+            sys.stdout.write('Sélection des adresses non géocodées par BAN précédemment et export en CSV')
+            sys.stdout.flush()
             subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(pathOut, self.config["GEOCODAGE_ERROR"]), "{0}\{1}".format(pathOut, self.config["GEOCODAGE_OUTPUT"]), '-dialect', 'sqlite', '-sql', "SELECT {0}, 'BAN' as geoc_name, 'BAN' as loc_name, '' as status, result_score * 100 as score, result_type as match_type, result_label as match_addr, {1}, {2}, {3}, {4}, longitude as x, latitude as y FROM {5} where round(result_score, 1) < 0.6".format(self.config["ID"], self.config["ADRESSE"], self.config["CODE_POSTAL"], self.config["COMMUNE"], self.config["PAYS"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
-            print('Exporté')
+            sys.stdout.write('Exporté')
+            sys.stdout.flush()
         except subprocess.CalledProcessError as e:
-            print(e.output)
+            sys.stdout.write(e.output)
     
     def geom_proj(self):
         os.chdir(self.config["PGBINPATH"])
         try:
-            print('Transformation des coordonnées issues du géocodage Esri et BAN dans le format L93')
+            sys.stdout.write('Transformation des coordonnées issues du géocodage Esri et BAN dans le format L93')
+            sys.stdout.flush()
             SQLUPDATECOORD = "UPDATE " + str(self.config["PGSCHEMA"]) + "." + str(self.config["GEOCODAGE_OUTPUT"]).split(".")[0] + " SET x=st_x(st_transform(ST_setsrid(cast(st_makepoint(x::numeric, y::numeric) as geometry), 4326), 2154)), y=st_y(st_transform(ST_setsrid(cast(st_makepoint(x::numeric, y::numeric) as geometry), 4326), 2154)) WHERE geoc_name in('BAN', 'Esri')"
             subprocess.check_call(['psql', '-U', self.config["PGUSER"], '-h', self.config["PGHOST"], '-p', self.config["PGPORT"], '-d', self.config["PGDBNAME"], '-c', '{0}'.format(SQLUPDATECOORD)])
-            print('Transformation terminée')
+            sys.stdout.write('Transformation terminée')
+            sys.stdout.flush()
         except subprocess.CalledProcessError as e:
-            print(e.output) 
+            sys.stdout.write(e.output) 
 
     def export_results(self):
         final_folder = os.path.join(self.config["WORKSPACE"], "geocodage", "geocodage_resultats")
         os.mkdir(final_folder)
         os.chdir(self.config["QGISBINPATH"])
         try:
-            print('Export des résultats dans le dossier final /geocodage_resultats')
+            sys.stdout.write('Export des résultats dans le dossier final /geocodage_resultats')
+            sys.stdout.flush()
             # Copie en CSV de la table PostgreSQL contenant les adresses géocodées insérées au fil de l'eau
             subprocess.check_call(['ogr2ogr', '-f', 'CSV', "{0}\{1}".format(final_folder, "adresses_geocodees.csv"), "PG:host={0} port={1} dbname={2} user={3} password={4}".format(self.config["PGHOST"], self.config["PGPORT"], self.config["PGDBNAME"], self.config["PGUSER"], self.config["PGPWD"]), '-sql', "SELECT * FROM {0}.{1}".format(self.config["PGSCHEMA"], str(self.config["GEOCODAGE_OUTPUT"]).split('.')[0])])
             # Copie du CSV contenant les adresses non géocodées s'il en reste
@@ -307,15 +337,17 @@ class Geocoding:
             pathResults = os.path.join(self.config["WORKSPACE"], "geocodage", "geocodage_resultats", "geocodage_erreurs_restantes.csv")
             if os.path.exists(pathErrors):
                 shutil.copyfile(pathErrors, os.path.join(self.config["WORKSPACE"], "geocodage", "geocodage_resultats") + "/geocodage_erreurs_restantes.csv")
-            print('Copie terminée')
+            sys.stdout.write('Copie terminée')
+            sys.stdout.flush()
             # Calcul ratio du nombre de lignes géocodées
             nbRowsGeocoding = subprocess.check_output("csvstat {0}\{1} --count".format(final_folder, "adresses_geocodees.csv"), shell=True)
             nbRowsErrors = subprocess.check_output("csvstat {0}\{1} --count".format(final_folder, "geocodage_erreurs_restantes.csv"), shell=True)
             if nbRowsGeocoding > 0:
                 ratioGeocoding = (float(nbRowsGeocoding) / (float(nbRowsGeocoding) + float(nbRowsErrors))) * 100
-                print("Performance du géocodage : {0} %".format(ratioGeocoding))
+                sys.stdout.write("Performance du géocodage : {0} %".format(ratioGeocoding))
+                sys.stdout.flush()
         except subprocess.CalledProcessError as e:
-            print(e.output) 
+            sys.stdout.write(e.output) 
 
     def chain_geocoding(self):
         self.clean_workspace()
@@ -335,32 +367,33 @@ class Geocoding:
                         if int(count_rows_csv) < int(self.config["ESRI_MAX_ROWS"]):
                             self.geocoding_esri(pathIn, pathOut)
                         elif int(count_rows_csv) == 0:
-                            print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
+                            sys.stdout.write('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
                             break
                         else:
-                            print('Seuil Esri dépassé')
+                            sys.stdout.write('Seuil Esri dépassé')
                             break
                     else: 
-                        print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
+                        sys.stdout.write('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
                         break
                 elif service == 'ban':
                     if (os.path.exists(pathIn)):
                         count_rows_csv = subprocess.check_output("csvstat {0} --count".format(pathIn), shell=True)
                         if int(count_rows_csv) == 0:
-                            print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
+                            sys.stdout.write('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
                             break
                         else:
                             # Si le géocodeur précédent est 'esri' et que le nombre de lignes a excédé le seuil esri, alors on prend l'entrée du géocodeur précédent esri s'il existe (si longueur de GEOCODING_SERVICES vaut 3)
                             if GEOCODING_SERVICES[index - 1] == 'esri' and int(count_rows_csv) > int(self.config["ESRI_MAX_ROWS"]) and len(GEOCODING_SERVICES) == 3:
-                                print('Seuil Esri dépassé, passage par la BAN')
+                                sys.stdout.write('Seuil Esri dépassé, passage par la BAN')
                                 pathIn = os.path.join(self.config["WORKSPACE"], "geocodage", GEOCODING_SERVICES[index - 2], self.config["GEOCODAGE_ERROR"])
                             self.geocoding_ban(pathIn, pathOut)
                     else: 
-                        print('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
+                        sys.stdout.write('Toutes les lignes ont été géocodées par le service précédent : {0}'.format(GEOCODING_SERVICES[index - 1]))
                         break
             self.geom_proj()
             self.export_results()
-            print("Géocodage terminé")
+            sys.stdout.write("Géocodage terminé")
+            sys.stdout.flush()
         else:
-            print("Aucun service de géocodage n'a été utilisé, GEOCODINGSERVICES est vide")
+            sys.stdout.write("Aucun service de géocodage n'a été utilisé, GEOCODINGSERVICES est vide")
             exit()
