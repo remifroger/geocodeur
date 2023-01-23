@@ -177,20 +177,12 @@ class Geocoding:
         try:
             if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage')):
                 shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage'))
-            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage', 'interne')):
-                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'interne'))
-            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage', 'esri')):
-                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'esri'))
-            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage', 'ban')):
-                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'ban'))
-            if os.path.exists(os.path.join(self.config["WORKSPACE"], 'geocodage', 'geocodage_resultats')):
-                shutil.rmtree(os.path.join(self.config["WORKSPACE"], 'geocodage', 'geocodage_resultats'))
             workspaceFolder = os.path.join(self.config["WORKSPACE"], 'geocodage')
             os.mkdir(workspaceFolder)
             sys.stdout.write('Espace de travail prêt')
             sys.stdout.flush()
         except OSError as error:
-            sys.stdout.write(error)
+            sys.stdout.write(str(error))
             sys.stdout.flush()
             pass
 
